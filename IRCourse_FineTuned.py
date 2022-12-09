@@ -23,20 +23,28 @@ def clean_text(text):
 # Function to convert XML file to Pandas Dataframe
 # Credit: https://stackoverflow.com/questions/63286268/how-to-convert-a-large-xml-file-to-pandas-dataframe
 def xml2df(file_path):
+    # Parsing XML File and obtaining root
+    tree = ET.parse(file_path)
+    root = tree.getroot()
 
-  # Parsing XML File and obtaining root
-  tree = ET.parse(file_path)
-  root = tree.getroot()
+    dict_list = []
 
-  dict_list = []
+    for _, elem in ET.iterparse(file_path, events=("end",)):
+        if elem.tag == "row":
+            dict_list.append(elem.attrib)      # PARSE ALL ATTRIBUTES
+            elem.clear()
 
-  for _, elem in ET.iterparse(file_path, events=("end",)):
-      if elem.tag == "row":
-        dict_list.append(elem.attrib)      # PARSE ALL ATTRIBUTES
-        elem.clear()
+    df = pd.DataFrame(dict_list)
+    # Get rid of columns that we dont need
+    df = df.drop(df.columns.difference(['Id', 'PostTypeId', 'AcceptedAnswerId', 'Body', 'Title']), axis=1)
 
-  df = pd.DataFrame(dict_list)
-  return df
+    # fill in nulls for title
+    df['Title'] = df['Title'].fillna('')
+ 
+    # Clean the text of title and body
+    df['Title'] = df['Title'].apply(clean_text)
+    df['Body'] = df['Body'].apply(clean_text)
+    return df
 
 def createAnswerEmbeddings(df, model):
     return model.encode(df['Body'].tolist(), convert_to_tensor=True)
@@ -47,7 +55,7 @@ def callback(score, epoch, steps):
 
 def createTriples():
     # get a df of questions, get rid of questions without accepted answers, get rid of queries
-    questions_df = df[df['PostTypeId'] == 1].dropna()
+    questions_df = df[df['PostTypeId'] == 1]
     exclude_ids = [127968, 67284, 1232, 18375, 47604, 8002, 51721, 11033, 4317, 1, 
                 3548, 71, 73945, 2291, 98549, 67032, 66988, 59563, 105388, 120149]
     # Remove the query ids from the questions dataframe
@@ -77,7 +85,6 @@ def createTriples():
     negative_list = negative_questions_merge_df.drop(negative_questions_merge_df.columns.difference(['Title', 'Body']), axis=1).values.tolist()
     for value in negative_list:
       value.append(0)
-    negative_list[1]
     return {0: positive_list, 1: negative_list}
 
 """ Copied and slightly modified from Behrooz Mansouri from SentenceBERTFineTuning.py"""
@@ -92,6 +99,8 @@ def split_data(data, split):
 
 def finetuneModel():
     pos_neg = createTriples()
+    print(pos_neg[0][0])
+    print(pos_neg[1][0])
     
     # Defining necessary variables for loss functions
     train_samples_MNRL = []
@@ -234,10 +243,12 @@ while validInput == False:
             print("Parsing Posts.xml...")
             df = xml2df("./data/Posts.xml")                            # Generates inverted index with count from Posts.xml
             df.to_csv("./data/Posts_DF.csv", index=False)              # Saves inverted index in TSV form
+            df = pd.read_csv("./data/Posts_DF.csv")
         # Model loading / Finetuning:
         if(os.path.exists("./data/Finetuned_Model")):
             print("Loading Finetuned_Model...")
             model = torch.load("./data/Finetuned_Model")
+            finetuneModel()
         else:
             print("Loading \"all-MiniLM-L6-v2\"...")
             model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -262,7 +273,7 @@ while validInput == False:
         print("Parsing Posts.xml...")
         df = xml2df("./data/Posts.xml")                            # Generates inverted index with count from Posts.xml
         df.to_csv("./data/Posts_DF.csv", index=False)              # Saves inverted index in TSV form
-
+        df = pd.read_csv("./data/Posts_DF.csv")
         # Create model and finetune it:
         print("Loading \"all-MiniLM-L6-v2\"...")
         model = SentenceTransformer("all-MiniLM-L6-v2")
