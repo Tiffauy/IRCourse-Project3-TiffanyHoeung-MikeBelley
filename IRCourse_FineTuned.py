@@ -63,8 +63,8 @@ def createTriples():
     questions_df['Id'] = questions_df['Id'].apply(int)
     questions_df = questions_df.drop(['Body'], axis=1)
     # Get negative and positive questions
-    positive_questions_df = questions_df[questions_df['Id'] % 2 == 0]
-    negative_questions_df = questions_df[questions_df['Id'] % 2 == 1]
+    positive_questions_df = questions_df[questions_df['Id'] % 2 == 0].copy()
+    negative_questions_df = questions_df[questions_df['Id'] % 2 == 1].copy()
     # Get a dataframe of just answers
     answers_df = df[df['PostTypeId'] == 2].drop(['AcceptedAnswerId', 'Title'], axis=1)
     # Get the accepted answer for every question that has one and add it to the positive list
@@ -248,7 +248,6 @@ while validInput == False:
         if(os.path.exists("./data/Finetuned_Model")):
             print("Loading Finetuned_Model...")
             model = torch.load("./data/Finetuned_Model")
-            finetuneModel()
         else:
             print("Loading \"all-MiniLM-L6-v2\"...")
             model = SentenceTransformer("all-MiniLM-L6-v2")
