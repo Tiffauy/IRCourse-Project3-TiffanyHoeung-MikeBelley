@@ -55,7 +55,7 @@ def callback(score, epoch, steps):
 
 def createTriples():
     # get a df of questions, get rid of questions without accepted answers, get rid of queries
-    questions_df = df[df['PostTypeId'] == 1]
+    questions_df = df[df['PostTypeId'] == 1].dropna()
     exclude_ids = [127968, 67284, 1232, 18375, 47604, 8002, 51721, 11033, 4317, 1, 
                 3548, 71, 73945, 2291, 98549, 67032, 66988, 59563, 105388, 120149]
     # Remove the query ids from the questions dataframe
@@ -99,8 +99,6 @@ def split_data(data, split):
 
 def finetuneModel():
     pos_neg = createTriples()
-    print(pos_neg[0][0])
-    print(pos_neg[1][0])
     
     # Defining necessary variables for loss functions
     train_samples_MNRL = []
@@ -244,6 +242,7 @@ while validInput == False:
             df = xml2df("./data/Posts.xml")                            # Generates inverted index with count from Posts.xml
             df.to_csv("./data/Posts_DF.csv", index=False)              # Saves inverted index in TSV form
             df = pd.read_csv("./data/Posts_DF.csv")
+        
         # Model loading / Finetuning:
         if(os.path.exists("./data/Finetuned_Model")):
             print("Loading Finetuned_Model...")
@@ -273,16 +272,19 @@ while validInput == False:
         df = xml2df("./data/Posts.xml")                            # Generates inverted index with count from Posts.xml
         df.to_csv("./data/Posts_DF.csv", index=False)              # Saves inverted index in TSV form
         df = pd.read_csv("./data/Posts_DF.csv")
+
         # Create model and finetune it:
         print("Loading \"all-MiniLM-L6-v2\"...")
         model = SentenceTransformer("all-MiniLM-L6-v2")
         print("Finetuning the model...")
         finetuneModel()
         torch.save(model, "./data/Finetuned_Model")
+        
         # Create Corpus embeddings
         print("Creating posts embeddings...")
         corpus_embeddings = createAnswerEmbeddings(df[df['PostTypeId'] == '2'], model)
         torch.save(corpus_embeddings, "./data/Corpus_Embeddings.pt") # Save the embeddings
+
         # Get answer_ids
         answer_ids = df[df['PostTypeId'] == 2]['Id'].tolist()
         validInput = True
